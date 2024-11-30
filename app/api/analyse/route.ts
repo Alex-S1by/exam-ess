@@ -26,7 +26,7 @@ export const POST = async (req: NextRequest) => {
         
 
 
-const prompt = `Here are the previous years' question papers:\n${combinedTexts}\n\nPlease find repeated questions[exact question with count not other content],repeated topics and a sample question paper [only the part a,b,c ] from the above question paper sets.`;
+const prompt = `Here are the previous years' question papers:\n${combinedTexts}\n\nPlease find repeated questions[exact question with count not other content],repeated topics from the above question paper sets.`;
 
 
 
