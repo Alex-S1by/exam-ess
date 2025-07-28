@@ -1,180 +1,201 @@
-"use client";
+'use client'
 
-import '../../polyfills'
-import { useState, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { X } from "lucide-react";
-import { pdfjs } from 'react-pdf';
+import { useState, useEffect } from 'react'
 
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+import { Button } from "@/components/ui/button"
+import { PlusCircle } from 'lucide-react'
 
-const UploadPage = () => {
-    const [files, setFiles] = useState<File[]>([]);
-    const [uploading, setUploading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [fileError, setFileError] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const router = useRouter();
+import { Card, CardContent } from "@/components/ui/card"
+import { useRouter } from 'next/navigation'
 
-    interface ExtractedText {
-        index: number;
-        text: string | null;
+type Message = {
+  text: string
+  sender: 'user' | 'bot'
+}
+
+export default function Component() {
+  const [analysisData, setAnalysisData] = useState< string>()
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState("")
+  
+  const router = useRouter()
+
+  useEffect(() => {
+    const fetchDataFromCookies = () => {
+      const cookidata = sessionStorage.getItem('analysisResults')
+      if (cookidata) {
+        const cookieData = JSON.parse(cookidata)
+        setAnalysisData(cookieData.jsonResponse)
+
+        if (!cookieData || cookieData.jsonResponse.length === 0) {
+          router.push('/upload')
+        }
+      } else {
+        router.push('/upload')
+      }
     }
 
-    const extractTextFromPDF = async (file: File, index: number): Promise<ExtractedText> => {
-        const textContent: string[] = [];
-        try {
-            const pdf = await pdfjs.getDocument(URL.createObjectURL(file)).promise;
-            const numPages = pdf.numPages;
+    fetchDataFromCookies()
+  }, [router])
 
-            for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-                const page = await pdf.getPage(pageNum);
-                const content = await page.getTextContent();
-                const pageText = content.items.map((item) => {
-                    if ('str' in item) {
-                      return item.str;
-                    } else {
-                      return ''; // or some other default value
-                    }
-                  }).join(' ');
-                textContent.push(pageText);
-            }
+  const renderContent = (data:string) => {
+    return Object.entries(data).flatMap(([key, value]) => {
+      if (Array.isArray(value)) {
+        return value.map((text, index) => {
+          if (typeof text !== 'string') return null
 
-            return { index, text: textContent.join('\n') };
-        } catch (error) {
-            console.error("Error extracting text:", error);
-            return { index, text: null };
-        }
-    };
+          const formattedText = text
+          .replace(/##\s*(.*)/gm, '<span class="text-xl font-semibold text-primary">$1</span>') 
+          .replace(/\*\*(.*?)\*\*/g, '<strong  className="text-primary">$1</strong>') // Convert **text** to <strong>text</strong>
+          .replace(/\*(.*?)\*/g, '<li className="text-sm text-slate-400">$1</li>') // Convert *text* to <em>text</em>.replace(/\n/g, '<br/>') // Replace line breaks with <br>
+        
+          return (
+            <li key={`${key}-${index}`} className="mb-4">
+              <div dangerouslySetInnerHTML={{ __html: formattedText }} />
+            </li>
+          )
+        })
+      }
 
-    const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            const newFiles = Array.from(e.target.files);
-            
-            // Check if all files are PDFs
-            const nonPdfFiles = newFiles.filter(file => file.type !== 'application/pdf');
-            if (nonPdfFiles.length > 0) {
-                setFileError("Please upload PDF files only.");
-                return;
-            }
+      return null
+    })
+  }
 
-            // Check for repeated files
-            const repeatedFiles = newFiles.filter(
-                (newFile) => files.some(
-                    (existingFile) => existingFile.name === newFile.name && existingFile.size === newFile.size
-                )
-            );
+  const handleNewAnalysis = () => {
+    router.push('/upload')
+  }
 
-            if (repeatedFiles.length > 0) {
-                setFileError("Some files have already been selected.");
-                return;
-            }
+  const handleSend = async() => {
+    if (!input.trim()) return
 
-            setFiles((prevFiles) => [...prevFiles, ...newFiles]);
-            setError(null);
-            setFileError(null);
-        }
-        if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-        }
-    }, [files]);
+    const userMessage: Message = { text: input, sender: 'user' }
+    setMessages(prev => [...prev, userMessage])
 
-    const handleRemoveFile = useCallback((index: number) => {
-        setFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
-    }, []);
+    setTimeout(async() => {
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (files.length === 0) return;
+try{
 
-        setUploading(true);
-        setError(null);
+  
 
-        try {
-            const extractedTexts: ExtractedText[] = await Promise.all(
-                files.map((file, index) => extractTextFromPDF(file, index))
-            );
 
-            
+  const cookieqn = sessionStorage.getItem('extractedtext');
+  console.log(cookieqn);
+  
+  const qn =  " qusetions :" + cookieqn+" \n\n\n  "+"\n\n\n user input: "+ input
+console.log(qn);
 
-            const response = await fetch("/api/analyse", {
-                method: "POST",
-                body: JSON.stringify(extractedTexts),
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
+      const response = await fetch("/api/analyse", {
+        method: "POST",
+        body: JSON.stringify(qn),
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
 
-            if (response.ok) {
-                const result = await response.json();
-                sessionStorage.setItem("analysisResults", JSON.stringify(result));
-                router.push("/results");
-                console.log(result);
-                
-            } else {
-                throw new Error("Failed to fetch results");
-            }
-        } catch (error) {
-            console.error("Error:", error);
-            setError("An error occurred during upload or analysis. Please try again.");
-        } finally {
-            setUploading(false);
-        }
-    };
+    if (response.ok) {
+        const result = await response.json();
+       const res=result.res;
+       const botMessage: Message = {
+        text: `${res}`,
+        sender: 'bot'
+      }
+      setMessages(prev => [...prev, botMessage])
+        console.log(result);
+        
+    } else {
+      const botMessage: Message = {
+        text: 'Failed to fetch results',
+        sender: 'bot'
+      }
+      setMessages(prev => [...prev, botMessage])
+    }
+} catch (error) {
+  console.log(error)
+    
+     
+    
+    }
+  }, 1000)
 
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-amber-50 to-white text-gray-800 px-4 sm:px-6 md:px-8 py-8 sm:py-12">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-gray-800 text-center">Upload Question Papers</h1>
-            <form onSubmit={handleSubmit} className="w-full max-w-md">
-                <div className="mb-4 sm:mb-6">
-                    <Label htmlFor="file" className="text-gray-700 block mb-2 sm:mb-3">Select PDF files</Label>
-                    <Input
-                        id="file"
-                        type="file"
-                        accept="application/pdf"
-                        onChange={handleFileChange}
-                        disabled={uploading}
-                        className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 w-full"
-                        multiple
-                        ref={fileInputRef}
-                    />
-                </div>
-                {fileError && <p className="text-red-500 mb-4 sm:mb-6 text-sm">{fileError}</p>}
-                {files.length > 0 && (
-                    <div className="mb-4 sm:mb-6">
-                        <h2 className="text-lg font-semibold mb-2 sm:mb-3 text-gray-700">Selected Files:</h2>
-                        <ul className="space-y-2 max-h-40 sm:max-h-48 overflow-y-auto">
-                            {files.map((file, index) => (
-                                <li key={index} className="flex items-center justify-between bg-gray-100 p-2 sm:p-3 rounded">
-                                    <span className="text-sm text-gray-600 truncate flex-1 mr-2">{file.name}</span>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleRemoveFile(index)}
-                                        className="text-red-500 hover:text-red-700 flex-shrink-0"
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-                {error && <p className="text-red-500 mb-4 sm:mb-6 text-sm">{error}</p>}
-                <Button
-                    type="submit"
-                    disabled={files.length === 0 || uploading}
-                    className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-4 sm:py-3 sm:px-6 rounded"
-                >
-                    {uploading ? "Uploading..." : "Upload and Analyze"}
-                </Button>
-            </form>
+    setInput("")
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSend()
+    }
+  }
+
+  if (!analysisData) {
+    return <div className="flex justify-center items-center h-screen">Loading...</div>
+  }
+
+  return (
+    <div className="bg-primary min-h-screen">
+      <div className="container mx-auto p-4 pb-40 space-y-8">
+        <div className="flex justify-between items-center mb-6 bg-primary p-4 rounded-lg shadow-md">
+          <h1 className="text-2xl md:text-3xl font-bold text-white" onClick={handleNewAnalysis}>ExamEssentials</h1>
+          <Button onClick={handleNewAnalysis} className="bg-primary text-white text-xl md:text-2xl border hover:bg-primary/90">
+            <PlusCircle className="mr-2 text-xl md:text-2xl" /> New
+          </Button>
         </div>
-    );
-};
 
-export default UploadPage;
+        <Card className="w-full border-none bg-primary">
+          <CardContent className="p-10">
+            <ul className="space-y-4 text-white text-xl">
+              {renderContent(analysisData)}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="w-full bg-primary text-white border-none ">
+          <CardContent className="p-6 space-y-4 flex flex-col">
+          {messages.map((msg, index) => (
+  <div
+    key={index}
+    className={`max-w-[80%] px-4 py-2 rounded-xl text-xl ${
+      msg.sender === 'user'
+        ? 'bg-gray-200 text-black  self-end ml-auto'
+        : 'self-start'
+    }`}
+  >
+    {/* If user, show plain text */}
+    {msg.sender === 'user' && msg.text}
+
+    {/* If bot, show parsed content */}
+    {msg.sender === 'bot' && (
+      <ul className="space-y-4 text-white text-xl">
+        {msg.text}
+      </ul>
+    )}
+  </div>
+))}
+
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Input box at bottom */}
+      <div className="fixed bottom-0 left-0 bg-primary right-0 p-4">
+        <div className="container mx-auto">
+          <div className="flex items-center border rounded-full px-4 py-2 shadow-sm">
+            <input
+              type="text"
+              placeholder="Ask a question or search..."
+              className="flex-1 outline-none bg-primary text-white text-sm md:text-base px-2 py-1"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+            <Button
+              onClick={handleSend}
+              className="ml-2 bg-primary text-white hover:bg-primary/90"
+            >
+              Search
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
